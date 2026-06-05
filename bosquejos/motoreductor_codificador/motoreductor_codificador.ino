@@ -1,15 +1,23 @@
 /* 
- * Código prueba para un solo motor.
+ * DEMO: Código prueba para un solo motor.
+ * Al iniciar mueve el motor en direcciones ccw y cw alternando.
+ * Ojo: hay un pequeño retraso entre la interrupción y la inversión del movimiento del dedo,
+ *      esto provoca que el motor se vaya desplazando más en una dirección que en otra entre
+ *      iteraciones.
  * https://cursos.mcielectronics.cl/2023/02/23/como-funciona-el-encoder-rotatorio-y-la-interfaz-con-arduino/
  */
 
+// Microsevomotor
+// Verde: tierra
+// Amarillo: 3.3 a 5V
+
 const int A_CLK_PIN = 2;    // Azul
-const int B_DT_PIN = 3;    // Blanco;
+const int B_DT_PIN = 3;     // Blanco
 const int IN1 = 8;
 const int IN2 = 9;
 const int ENA = 10;
 
-int speed = 20;
+int speed = 60;
 
 const int NUM_VUELTAS = 1;
 const int TICKS_POR_VUELTA = 7;
@@ -32,10 +40,8 @@ void setup() {
   pinMode(IN1, OUTPUT);
   pinMode(IN2, OUTPUT);
   pinMode(ENA, OUTPUT);
-  ccw = true;
-  digitalWrite(IN1, HIGH);
-  digitalWrite(IN2, LOW);
-  digitalWrite(ENA, speed);
+  moveCCW();
+  analogWrite(ENA, speed);
 
   Serial.begin(9600);
 
@@ -71,23 +77,50 @@ void updateEncoder(){
 		Serial.print("Direction: ");
 		Serial.print(currentDir);
 		Serial.print(" | Counter: ");
-		Serial.println(counter);
+		Serial.print(counter);
+    Serial.print(" ccw =");
+    Serial.println(ccw);
 
     // TODO: Ojo con los negativos
     if(counter >= MAX_COUNT) {
-      if (ccw) {
-        digitalWrite(IN1, LOW);
-        digitalWrite(IN2, HIGH);
-        ccw = false;
+      if (!ccw) {
+        stop();
+        moveCCW();
       } else {
-        digitalWrite(IN1, HIGH);
-        digitalWrite(IN2, LOW);
-        ccw = true;
+        Serial.println("ERROR: no es cw");
+        stop();
       }
-      counter = 0;
+    } else if (counter <= -MAX_COUNT) {
+      if (ccw) {
+        stop();
+        moveCW();
+      } else {
+        Serial.println("ERROR: no es ccw");
+        stop();
+      }
     }
 	}
 
 	// guarda el ultimo estado del CLK 
 	lastStateCLK = currentStateCLK;
+}
+
+void moveCW() {
+  digitalWrite(IN1, HIGH);
+  digitalWrite(IN2, LOW);
+  ccw = false;
+  counter = 0;
+}
+
+void moveCCW() {
+  digitalWrite(IN1, LOW);
+  digitalWrite(IN2, HIGH);
+  ccw = true;
+  counter = 0;
+}
+
+void stop() {
+  digitalWrite(IN1, LOW);
+  digitalWrite(IN2, LOW);
+  counter = 0;
 }
