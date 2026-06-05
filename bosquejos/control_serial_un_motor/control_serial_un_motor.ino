@@ -1,9 +1,7 @@
 /* 
  * DEMO: Código prueba para un solo motor.
- * Al iniciar mueve el motor en direcciones ccw y cw alternando.
- * Ojo: hay un pequeño retraso entre la interrupción y la inversión del movimiento del dedo,
- *      esto provoca que el motor se vaya desplazando más en una dirección que en otra entre
- *      iteraciones.
+ * Mueve el motor según el comando serial recibido.
+ * Este demo es para usar con el monitor serial, por eso el movimiento está acotado.
  * https://cursos.mcielectronics.cl/2023/02/23/como-funciona-el-encoder-rotatorio-y-la-interfaz-con-arduino/
  */
 
@@ -23,15 +21,29 @@ const int NUM_VUELTAS = 1;
 const int TICKS_POR_VUELTA = 7;
 const int MAX_COUNT = NUM_VUELTAS * TICKS_POR_VUELTA;
 
+const unsigned int MAX_MESSAGE_LENGTH = 64;
+
 int counter;
+int start_counter;    // Valor de counter al iniciar el movimiento
 int currentStateCLK;
 int lastStateCLK;
-bool ccw;
+
+enum Direction {
+  CCW = 1,
+  STOP = 2,
+  CW = 3
+};
+
+Direction direction;
 
 
 String currentDir = "";
 
 void setup() {
+  // estado
+  direction = STOP;
+  counter = 0;
+
   // entradas
   pinMode(A_CLK_PIN, INPUT);
   pinMode(B_DT_PIN, INPUT);
@@ -40,9 +52,6 @@ void setup() {
   pinMode(IN1, OUTPUT);
   pinMode(IN2, OUTPUT);
   pinMode(ENA, OUTPUT);
-
-  counter = 0;
-  moveCCW();
   analogWrite(ENA, speed);
 
   Serial.begin(9600);
@@ -55,6 +64,60 @@ void setup() {
 }
 
 void loop() {
+  // Call this constantly; it will return true only when a full line arrives
+  if (readLineAndCheckComplete()) {
+    // Your main loop code continues instantly without lagging
+  }
+
+  int diff = counter - start_counter;
+  if(direction == CW && diff >= MAX_COUNT) {
+    stop();
+  } else if (direction == CCW && diff <= -MAX_COUNT) {
+    stop();
+  }
+}
+
+bool readLineAndCheckComplete() {
+  static char message[MAX_MESSAGE_LENGTH];
+  static unsigned int message_pos = 0;
+
+  while (Serial.available() > 0) {
+    char inByte = Serial.read();
+
+    if (inByte != '\n' && inByte != '\r') {
+      if (message_pos < MAX_MESSAGE_LENGTH - 1) {
+        message[message_pos] = inByte;
+        message_pos++;
+      }
+    } 
+    else if (inByte == '\n') { // Line end flag hit
+      message[message_pos] = '\0'; // Terminate string
+      
+      start_counter = counter;
+      Serial.print("Requesting direction: ");
+      Serial.print(message);
+      Serial.print(" ... counter = ");
+      Serial.println(start_counter);
+
+      switch(message[0]) {
+        case '1':
+          moveCCW();
+          break;
+        case '2':
+          stop();
+          break;
+        case '3':
+          moveCW();
+          break;
+        default:
+          Serial.println("  Other");
+      }
+      
+      message_pos = 0; // Reset buffer index for next command
+      return true;
+    }
+  }
+  return false;
 }
 
 void updateEncoder(){
@@ -80,26 +143,8 @@ void updateEncoder(){
 		Serial.print(currentDir);
 		Serial.print(" | Counter: ");
 		Serial.print(counter);
-    Serial.print(" ccw =");
-    Serial.println(ccw);
-
-    if(counter >= MAX_COUNT) {
-      if (!ccw) {
-        stop();
-        moveCCW();
-      } else {
-        Serial.println("ERROR: no es cw");
-        //stop();
-      }
-    } else if (counter <= -MAX_COUNT) {
-      if (ccw) {
-        stop();
-        moveCW();
-      } else {
-        Serial.println("ERROR: no es ccw");
-        //stop();
-      }
-    }
+    Serial.print(" | direction state = ");
+    Serial.println(direction);
 	}
 
 	// guarda el ultimo estado del CLK 
@@ -109,16 +154,17 @@ void updateEncoder(){
 void moveCW() {
   digitalWrite(IN1, HIGH);
   digitalWrite(IN2, LOW);
-  ccw = false;
+  direction = CW;
 }
 
 void moveCCW() {
   digitalWrite(IN1, LOW);
   digitalWrite(IN2, HIGH);
-  ccw = true;
+  direction = CCW;
 }
 
 void stop() {
+  direction = STOP;
   digitalWrite(IN1, LOW);
   digitalWrite(IN2, LOW);
 }
