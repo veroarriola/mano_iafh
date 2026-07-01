@@ -10,6 +10,7 @@ Control para la mano diseñanda por Irving Aarón Flores Hernández
 - Corriente Pico: 0.55A
 
 Cables:
+
 * Rojo: Potencia del motor (+), puede invertir polaridad para cambiar dirección de giro.
 * Negro: Fuente de alimentación del motor (-) : Puede controlar e invertir el giro en un sentido horario o antihorario.
 * Amarillo: Potencia del encoder (+)

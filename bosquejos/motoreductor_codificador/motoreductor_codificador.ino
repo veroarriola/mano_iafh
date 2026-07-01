@@ -46,6 +46,7 @@ void setup() {
   analogWrite(ENA, speed);
 
   Serial.begin(9600);
+  printStatus();
 
   // estado inicial del CLK
   lastStateCLK = digitalRead(A_CLK_PIN);
@@ -76,12 +77,7 @@ void updateEncoder(){
 			currentDir ="CW";
 		}
 
-		Serial.print("Direction: ");
-		Serial.print(currentDir);
-		Serial.print(" | Counter: ");
-		Serial.print(counter);
-    Serial.print(" ccw =");
-    Serial.println(ccw);
+		printStatus();
 
     if(counter >= MAX_COUNT) {
       if (!ccw) {
@@ -121,4 +117,13 @@ void moveCCW() {
 void stop() {
   digitalWrite(IN1, LOW);
   digitalWrite(IN2, LOW);
+}
+
+void printStatus() {
+  Serial.print("Direction: ");
+  Serial.print(currentDir);
+  Serial.print(" | Counter: ");
+  Serial.print(counter);
+  Serial.print(" ccw =");
+  Serial.println(ccw);
 }
